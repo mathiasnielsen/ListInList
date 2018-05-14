@@ -5,6 +5,7 @@ using Android.OS;
 using Android.Support.V7.Widget;
 using Android.Views;
 using Android.Widget;
+using Java.Lang;
 
 namespace ListWithLists
 {
@@ -40,19 +41,66 @@ namespace ListWithLists
 
         private void AddAdapterData()
         {
-            var itemSource = new List<List<string>>();
+            var itemSource = new List<ScrollListData>();
 
             for (int i = 0; i < count; i++)
             {
-                var list = new List<string>();
+                var list = new ScrollListData();
                 itemSource.Add(list);
                 for (int x = 0; x < i + 1; x++)
                 {
-                    list.Add("Item " + x);
+                    list.Items.Add("Item " + x);
                 }
             }
 
             listAdapter.ItemSource = itemSource;
+        }
+
+        private class SimpleListAdapter : RecyclerView.Adapter
+        {
+            private ScrollListData _itemSource;
+
+            public ScrollListData ItemSource
+            {
+                get
+                {
+                    return _itemSource;
+                }
+
+                set
+                {
+                    _itemSource = value;
+                    NotifyDataSetChanged();
+                }
+            }
+
+            public override int ItemCount
+            {
+                get
+                {
+                    var itemCount = 0;
+
+                    itemCount = ItemSource.Items.Count;
+
+                    return itemCount;
+                }
+            }
+
+            public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
+            {
+                if (holder is CellHolder cellHolder)
+                {
+                    cellHolder.PopulateWithData(Resource.Drawable.notification_template_icon_bg);
+                }
+            }
+
+            public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
+            {
+                var cellView = LayoutInflater.From(parent.Context).Inflate(Resource.Layout.CellLayout, parent, false);
+                var cellHolder = new CellHolder(cellView);
+
+                return cellHolder;
+            }
         }
 
         private class ListWithListAdapter : RecyclerView.Adapter
@@ -60,15 +108,15 @@ namespace ListWithLists
             private const int HEADER_ITEM = 0;
             private const int CELL_ITEM = 1;
 
-            private List<List<string>> _itemSource;
+            private List<ScrollListData> _itemSource;
             private List<ListInfo> listInfos;
 
             public ListWithListAdapter()
             {
-                ItemSource = new List<List<string>>();
+                ItemSource = new List<ScrollListData>();
             }
 
-            public List<List<string>> ItemSource
+            public List<ScrollListData> ItemSource
             {
                 get { return _itemSource; }
                 set
@@ -89,7 +137,7 @@ namespace ListWithLists
                     foreach (var list in ItemSource)
                     {
                         itemCount++;
-                        itemCount += list.Count;
+                        itemCount++;
                     }
 
                     return itemCount;
@@ -105,11 +153,36 @@ namespace ListWithLists
                     headerHolder.PopulateWithData("Group " + groupIndex);
                 }
 
-                if (holder is CellHolder cellHolder)
+                if (holder is CellWithList cellHolder)
                 {
+                    ////var scrollX = cellHolder.GetScroll();
+                    ////var oldPos = GetPosition(cellHolder.AdapterPosition);
+                    ////var oldItem = ItemSource[oldPos];
+                    ////oldItem.ScrollOffset = scrollX;
+                    ////System.Diagnostics.Debug.WriteLine($"Scroll X: {scrollX}, for pos: {oldPos}");
+
                     var listInfo = listInfos[position];
                     var groupIndex = listInfo.GroupIndex;
-                    cellHolder.PopulateWithData(Resource.Drawable.notification_template_icon_bg);
+
+                    cellHolder.PopulateWithData(ItemSource[groupIndex]);
+                    ItemSource[groupIndex].Position = position;
+                }
+            }
+
+            public override void OnViewRecycled(Object holder)
+            {
+                base.OnViewRecycled(holder);
+
+                if (holder is CellWithList cellHolder)
+                {
+                    var scrollX = cellHolder.GetScroll();
+                    var position = cellHolder.AdapterPosition;
+
+                    var itemPosition = GetPosition(position);
+                    ItemSource[itemPosition].ScrollOffset = scrollX;
+                    ItemSource[itemPosition].Position = position;
+
+                    System.Diagnostics.Debug.WriteLine($"Position {position}, scroll is {scrollX}");
                 }
             }
 
@@ -123,8 +196,8 @@ namespace ListWithLists
                     return headerHolder;
                 }
 
-                var cellView = LayoutInflater.From(parent.Context).Inflate(Resource.Layout.CellLayout, parent, false);
-                var cellHolder = new CellHolder(cellView);
+                var cellView = LayoutInflater.From(parent.Context).Inflate(Resource.Layout.CellWithListLayout, parent, false);
+                var cellHolder = new CellWithList(cellView);
 
                 return cellHolder;
             }
@@ -139,19 +212,34 @@ namespace ListWithLists
                 return CELL_ITEM;
             }
 
+            private int GetPosition(int rawPosition)
+            {
+                return (int)rawPosition / 2;
+            }
+
             private void SetListInfo()
             {
                 listInfos = new List<ListInfo>();
                 for (int groupIndex = 0; groupIndex < ItemSource.Count; groupIndex++)
                 {
                     listInfos.Add(new ListInfo() { IsHeader = true, GroupIndex = groupIndex });
-                    var currentGroup = ItemSource[groupIndex];
-                    for (int itemIndex = 0; itemIndex < currentGroup.Count; itemIndex++)
-                    {
-                        listInfos.Add(new ListInfo() { GroupIndex = groupIndex, ItemIndex = itemIndex });
-                    }
+                    listInfos.Add(new ListInfo() { IsHeader = false, GroupIndex = groupIndex });
                 }
             }
+
+            ////private void SetListInfo()
+            ////{
+            ////    listInfos = new List<ListInfo>();
+            ////    for (int groupIndex = 0; groupIndex < ItemSource.Count; groupIndex++)
+            ////    {
+            ////        listInfos.Add(new ListInfo() { IsHeader = true, GroupIndex = groupIndex });
+            ////        var currentGroup = ItemSource[groupIndex];
+            ////        for (int itemIndex = 0; itemIndex < currentGroup.Items.Count; itemIndex++)
+            ////        {
+            ////            listInfos.Add(new ListInfo() { GroupIndex = groupIndex, ItemIndex = itemIndex });
+            ////        }
+            ////    }
+            ////}
         }
 
         private class ListInfo
@@ -194,9 +282,16 @@ namespace ListWithLists
             public void PopulateWithData(int imageResource)
             {
                 _imageView.SetImageResource(Resource.Drawable.notification_template_icon_bg);
-                SetImageAsync();
 
-                _textView.Text = imageResource.ToString();
+                SetImageAsync();
+                ////SetImage();
+
+                _textView.Text = "Item " + AdapterPosition;
+            }
+
+            private void SetImage()
+            {
+                _imageView.SetImageResource(Resource.Mipmap.Icon);
             }
 
             private async void SetImageAsync()
@@ -204,6 +299,44 @@ namespace ListWithLists
                 await Task.Delay(300);
 
                 _imageView.SetImageResource(Resource.Mipmap.Icon);
+            }
+        }
+
+        private class CellWithList : RecyclerView.ViewHolder
+        {
+            private RecyclerView _recyclerView;
+            private SimpleListAdapter _adapter;
+
+            public CellWithList(View itemView)
+                : base(itemView)
+            {
+                _recyclerView = itemView.FindViewById<RecyclerView>(Resource.Id.CellRecyclerView);
+                _recyclerView.SetLayoutManager(new LinearLayoutManager(itemView.Context, LinearLayoutManager.Horizontal, false));
+                _adapter = new SimpleListAdapter();
+                _recyclerView.SetAdapter(_adapter);
+            }
+
+            public void PopulateWithData(ScrollListData items)
+            {
+                _adapter.ItemSource = items;
+
+                var dp = ItemView.Resources.DisplayMetrics.ScaledDensity;
+                var itemWidth = 100 * dp;
+                if (items.ScrollOffset > 0)
+                {
+                    var position = (int)(itemWidth / items.ScrollOffset);
+                    var offset = (int)(items.ScrollOffset - (position * itemWidth));
+
+                    var layoutManager = (LinearLayoutManager)_recyclerView.GetLayoutManager();
+                    layoutManager.ScrollToPositionWithOffset(position, -offset);
+                    ////System.Diagnostics.Debug.WriteLine($"Position, {AdapterPosition}-, scroll to {items.ScrollOffset}");   
+                }
+            }
+
+            public int GetScroll()
+            {
+                var scrollX = _recyclerView.ComputeHorizontalScrollOffset();
+                return scrollX;
             }
         }
 
@@ -218,6 +351,20 @@ namespace ListWithLists
                 button.Text = $"{count++} clicks!";
                 AddAdapterData();
             };
+        }
+
+        private class ScrollListData
+        {
+            public ScrollListData()
+            {
+                Items = new List<string>();
+            }
+
+            public List<string> Items { get; set; }
+
+            public int ScrollOffset { get; set; }
+
+            public int Position { get; set; }
         }
     }
 }

@@ -85,6 +85,7 @@
     <AndroidResource Include="Resources\mipmap-xxxhdpi\Icon.png" />
     <AndroidResource Include="Resources\layout\HeaderLayout.axml" />
     <AndroidResource Include="Resources\layout\CellLayout.axml" />
+    <AndroidResource Include="Resources\layout\CellWithListLayout.axml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\drawable\" />
