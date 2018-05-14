@@ -155,17 +155,10 @@ namespace ListWithLists
 
                 if (holder is CellWithList cellHolder)
                 {
-                    ////var scrollX = cellHolder.GetScroll();
-                    ////var oldPos = GetPosition(cellHolder.AdapterPosition);
-                    ////var oldItem = ItemSource[oldPos];
-                    ////oldItem.ScrollOffset = scrollX;
-                    ////System.Diagnostics.Debug.WriteLine($"Scroll X: {scrollX}, for pos: {oldPos}");
-
                     var listInfo = listInfos[position];
                     var groupIndex = listInfo.GroupIndex;
 
                     cellHolder.PopulateWithData(ItemSource[groupIndex]);
-                    ItemSource[groupIndex].Position = position;
                 }
             }
 
@@ -180,7 +173,6 @@ namespace ListWithLists
 
                     var itemPosition = GetPosition(position);
                     ItemSource[itemPosition].ScrollOffset = scrollX;
-                    ItemSource[itemPosition].Position = position;
 
                     System.Diagnostics.Debug.WriteLine($"Position {position}, scroll is {scrollX}");
                 }
@@ -319,18 +311,8 @@ namespace ListWithLists
             public void PopulateWithData(ScrollListData items)
             {
                 _adapter.ItemSource = items;
-
-                var dp = ItemView.Resources.DisplayMetrics.ScaledDensity;
-                var itemWidth = 100 * dp;
-                if (items.ScrollOffset > 0)
-                {
-                    var position = (int)(itemWidth / items.ScrollOffset);
-                    var offset = (int)(items.ScrollOffset - (position * itemWidth));
-
-                    var layoutManager = (LinearLayoutManager)_recyclerView.GetLayoutManager();
-                    layoutManager.ScrollToPositionWithOffset(position, -offset);
-                    ////System.Diagnostics.Debug.WriteLine($"Position, {AdapterPosition}-, scroll to {items.ScrollOffset}");   
-                }
+                var layoutManager = (LinearLayoutManager)_recyclerView.GetLayoutManager();
+                layoutManager.ScrollToPositionWithOffset(0, -items.ScrollOffset);
             }
 
             public int GetScroll()
@@ -363,8 +345,6 @@ namespace ListWithLists
             public List<string> Items { get; set; }
 
             public int ScrollOffset { get; set; }
-
-            public int Position { get; set; }
         }
     }
 }
